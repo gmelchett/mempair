@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a6b3c" />
+  <title>Memory Pair</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header id="header">
+    <h1>Memory Pair</h1>
+    <div class="stats">
+      <span>Moves: <strong id="moves">0</strong></span>
+      <span>Pairs: <strong id="pairs">0</strong>/8</span>
+      <span>Time: <strong id="time">0:00</strong></span>
+    </div>
+    <button id="restart" type="button">Restart</button>
+  </header>
+
+  <main>
+    <div id="board" class="board" aria-label="Memory game board"></div>
+    <div id="win-overlay">
+      <h2>You Win!</h2>
+      <p id="win-stats"></p>
+      <button class="btn" id="play-again" type="button">Play Again</button>
+    </div>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+:root {
+  --card-size: 110px;
+  --gap: 12px;
+  --radius: 14px;
+  --back: #2b6cb0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #1a6b3c;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+#header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.stats {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 15px;
+}
+
+.stats span {
+  opacity: 0.9;
+}
+
+#restart {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+#restart:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, var(--card-size));
+  gap: var(--gap);
+  margin: 20px 0;
+}
+
+.card {
+  width: var(--card-size);
+  height: var(--card-size);
+  perspective: 600px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.card.flipped .card-inner,
+.card.matched .card-inner {
+  transform: rotateY(180deg);
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.face.back {
+  background: var(--back);
+}
+
+.face.back img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.face.front {
+  transform: rotateY(180deg);
+}
+
+.face.front img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.card.matched {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.card.matched .card-inner {
+  transition: transform 0.4s ease, opacity 0.4s ease;
+  opacity: 0;
+}
+
+/* Win overlay (matches Yukon's full-screen overlay) */
+#win-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 20000;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #fff;
+}
+#win-overlay.show { display: flex; }
+#win-overlay h2 {
+  font-size: 48px;
+  margin-bottom: 16px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+#win-overlay p {
+  font-size: 20px;
+  margin-bottom: 24px;
+  opacity: 0.9;
+}
+.btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.25); }
+#play-again { font-size: 18px; padding: 10px 28px; }
