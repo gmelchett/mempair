@@ -11,9 +11,12 @@ const SIZES = {
 const BASE_CARD = 110;   // preferred card size on desktop
 const MIN_CARD = 48;     // smallest a card may shrink to
 let currentSize = "small";
+let currentSet = "random"; // "random" or "setN"
+let selectedImages = [];    // selectedImages[logicalId-1] = actual image number (1..60)
 let TOTAL_PAIRS = (SIZES[currentSize].cols * SIZES[currentSize].rows) / 2;
 const IMAGE_BASE = "assets/";
 const BACK_IMAGE = "assets/back.png";
+const TOTAL_IMAGES = 72; // available card images: assets/01.jpg .. assets/72.jpg
 
 const boardEl = document.getElementById("board");
 const movesEl = document.getElementById("moves");
@@ -23,6 +26,7 @@ const winOverlayEl = document.getElementById("win-overlay");
 const winStatsEl = document.getElementById("win-stats");
 const restartBtn = document.getElementById("restart");
 const sizeSelect = document.getElementById("size-select");
+const setSelect = document.getElementById("set-select");
 
 let firstCard = null;
 let secondCard = null;
@@ -49,7 +53,8 @@ function writeStats(all) {
 
 function averageMoves() {
   const { games, total } = getStatsForSize(currentSize);
-  return games > 0 ? Math.round(total / games) : null;
+  if (games === 0) return null;
+  return Math.round((total / games) * 10) / 10;
 }
 
 function bestMoves() {
@@ -72,7 +77,7 @@ function saveState() {
       matched: card.classList.contains("matched"),
     });
   });
-  const state = { size: currentSize, deck, moves };
+  const state = { size: currentSize, deck, moves, images: selectedImages };
   localStorage.setItem('mempair_state', JSON.stringify(state));
 }
 
@@ -95,6 +100,68 @@ function loadSizePreference() {
   return (size && SIZES[size]) ? size : null;
 }
 
+// ── Per-layout set (image-group) selection, persisted in localStorage ──
+function setStorageKey(size) {
+  return `mempair_set_${size}`;
+}
+
+function saveSetPreference(size, set) {
+  localStorage.setItem(setStorageKey(size), set);
+}
+
+function loadSetPreference(size) {
+  const set = localStorage.getItem(setStorageKey(size));
+  const pairs = (SIZES[size].cols * SIZES[size].rows) / 2;
+  const count = Math.floor(TOTAL_IMAGES / pairs);
+  if (set === "random") return "random";
+  if (set && set.startsWith("set")) {
+    const k = parseInt(set.slice(3), 10);
+    if (k >= 1 && k <= count) return set;
+  }
+  return null;
+}
+
+// Number of contiguous Set N groups that fit within TOTAL_IMAGES for the
+// current layout. Each set is a block of TOTAL_PAIRS images.
+function availableSets() {
+  return Math.floor(TOTAL_IMAGES / TOTAL_PAIRS);
+}
+
+// Build the <option> list for the set dropdown based on the current layout.
+function populateSetSelect() {
+  const count = availableSets();
+  setSelect.innerHTML = "";
+  const randomOpt = document.createElement("option");
+  randomOpt.value = "random";
+  randomOpt.textContent = "Random";
+  setSelect.appendChild(randomOpt);
+  for (let k = 1; k <= count; k++) {
+    const opt = document.createElement("option");
+    opt.value = `set${k}`;
+    opt.textContent = `Set ${k}`;
+    setSelect.appendChild(opt);
+  }
+}
+
+// Map logical pair ids (1..TOTAL_PAIRS) to actual image numbers (1..60).
+function computeSelectedImages(setKey) {
+  const arr = new Array(TOTAL_PAIRS);
+  if (setKey === "random") {
+    const pool = [];
+    for (let i = 1; i <= TOTAL_IMAGES; i++) pool.push(i);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    for (let i = 0; i < TOTAL_PAIRS; i++) arr[i] = pool[i];
+  } else {
+    const k = parseInt(setKey.slice(3), 10);
+    const start = (k - 1) * TOTAL_PAIRS + 1;
+    for (let i = 0; i < TOTAL_PAIRS; i++) arr[i] = start + i;
+  }
+  return arr;
+}
+
 function pad(n) {
   return n.toString().padStart(2, "0");
 }
@@ -112,11 +179,12 @@ function buildDeck() {
   return deck;
 }
 
-function createCard(id) {
+function createCard(id, imageNumber) {
   const card = document.createElement("button");
   card.className = "card";
   card.type = "button";
   card.dataset.id = id;
+  card.dataset.image = imageNumber;
 
   const inner = document.createElement("div");
   inner.className = "card-inner";
@@ -131,7 +199,7 @@ function createCard(id) {
   const front = document.createElement("div");
   front.className = "face front";
   const frontImg = document.createElement("img");
-  frontImg.src = `${IMAGE_BASE}${pad(id)}.jpg`;
+  frontImg.src = `${IMAGE_BASE}${pad(imageNumber)}.jpg`;
   frontImg.alt = `pair ${id}`;
   front.appendChild(frontImg);
 
@@ -259,6 +327,13 @@ function init() {
   }
   const { cols, rows } = SIZES[currentSize];
   TOTAL_PAIRS = (cols * rows) / 2;
+
+  // Resolve the image-set selection (falls back to Random) and build the UI.
+  const storedSet = loadSetPreference(currentSize);
+  currentSet = storedSet || "random";
+  populateSetSelect();
+  setSelect.value = currentSet;
+
   applyLayout();
   winOverlayEl.classList.remove("show");
   firstCard = null;
@@ -271,9 +346,12 @@ function init() {
   renderStats();
 
   if (saved && saved.deck && saved.deck.length === cols * rows) {
+    selectedImages = (saved.images && saved.images.length === TOTAL_PAIRS)
+      ? saved.images
+      : computeSelectedImages(currentSet);
     boardEl.innerHTML = "";
     saved.deck.forEach((item) => {
-      const card = createCard(item.id);
+      const card = createCard(item.id, item.image);
       if (item.matched) card.classList.add("matched");
       boardEl.appendChild(card);
     });
@@ -281,9 +359,10 @@ function init() {
     matched = saved.deck.filter((item) => item.matched).length;
     movesEl.textContent = moves;
   } else {
+    selectedImages = computeSelectedImages(currentSet);
     const deck = buildDeck();
     boardEl.innerHTML = "";
-    deck.forEach((id) => boardEl.appendChild(createCard(id)));
+    deck.forEach((id) => boardEl.appendChild(createCard(id, selectedImages[id - 1])));
     saveState();
   }
 }
@@ -299,6 +378,12 @@ document.getElementById("play-again").addEventListener("click", () => {
 sizeSelect.addEventListener("change", (e) => {
   currentSize = e.target.value;
   saveSizePreference(currentSize);
+  clearState();
+  init();
+});
+setSelect.addEventListener("change", (e) => {
+  currentSet = e.target.value;
+  saveSetPreference(currentSize, currentSet);
   clearState();
   init();
 });
