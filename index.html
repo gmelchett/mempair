@@ -12,9 +12,18 @@
     <h1>Memory Pair</h1>
     <div class="stats">
       <span>Moves: <strong id="moves">0</strong></span>
-      <span>Pairs: <strong id="pairs">0</strong>/8</span>
-      <span>Time: <strong id="time">0:00</strong></span>
+      <span>Avg: <strong id="avg">-</strong></span>
+      <span>Best: <strong id="best">-</strong></span>
     </div>
+    <label class="size-select">
+      Size:
+      <select id="size-select">
+        <option value="small">4 &times; 4 (16)</option>
+        <option value="medium">4 &times; 8 (32)</option>
+        <option value="large">6 &times; 8 (48)</option>
+        <option value="xlarge">6 &times; 12 (72)</option>
+      </select>
+    </label>
     <button id="restart" type="button">Restart</button>
   </header>
 

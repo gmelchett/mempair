@@ -1,46 +1,102 @@
 // Memory Pair game logic.
-// 8 image pairs (assets/01.jpg .. assets/08.jpg) -> 16 cards in a 4x4 grid.
+// Board size is selectable (see SIZES); cards use assets/01.jpg .. assets/NN.jpg.
 
-const TOTAL_PAIRS = 8;
+// Board size presets: { cols, rows }. Pairs = cols*rows/2.
+const SIZES = {
+  small:  { cols: 4, rows: 4 },
+  medium: { cols: 8, rows: 4 },
+  large:  { cols: 8, rows: 6 },
+  xlarge: { cols: 12, rows: 6 },
+};
+const BASE_CARD = 110;   // preferred card size on desktop
+const MIN_CARD = 48;     // smallest a card may shrink to
+let currentSize = "small";
+let TOTAL_PAIRS = (SIZES[currentSize].cols * SIZES[currentSize].rows) / 2;
 const IMAGE_BASE = "assets/";
 const BACK_IMAGE = "assets/back.png";
 
 const boardEl = document.getElementById("board");
 const movesEl = document.getElementById("moves");
-const pairsEl = document.getElementById("pairs");
-const timeEl = document.getElementById("time");
+const avgEl = document.getElementById("avg");
+const bestEl = document.getElementById("best");
 const winOverlayEl = document.getElementById("win-overlay");
 const winStatsEl = document.getElementById("win-stats");
 const restartBtn = document.getElementById("restart");
+const sizeSelect = document.getElementById("size-select");
 
 let firstCard = null;
 let secondCard = null;
 let pendingPair = null; // { first, second, isMatch } while a revealed pair awaits dismissal
 let moves = 0;
 let matched = 0;
-let timerId = null;
-let startTime = 0;
+let gameOver = false;
+
+// ── Persistent per-size stats (stored in localStorage) ──
+function readStats() {
+  try {
+    return JSON.parse(localStorage.getItem('mempair_moves')) || {};
+  } catch { return {}; }
+}
+
+function getStatsForSize(size) {
+  const all = readStats();
+  return all[size] || { games: 0, total: 0, best: null };
+}
+
+function writeStats(all) {
+  localStorage.setItem('mempair_moves', JSON.stringify(all));
+}
+
+function averageMoves() {
+  const { games, total } = getStatsForSize(currentSize);
+  return games > 0 ? Math.round(total / games) : null;
+}
+
+function bestMoves() {
+  const { best } = getStatsForSize(currentSize);
+  return best;
+}
+
+function renderStats() {
+  const avg = averageMoves();
+  avgEl.textContent = avg === null ? "-" : avg;
+  const best = bestMoves();
+  bestEl.textContent = best === null ? "-" : best;
+}
+
+function saveState() {
+  const deck = [];
+  boardEl.querySelectorAll(".card").forEach((card) => {
+    deck.push({
+      id: parseInt(card.dataset.id),
+      matched: card.classList.contains("matched"),
+    });
+  });
+  const state = { size: currentSize, deck, moves };
+  localStorage.setItem('mempair_state', JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    return JSON.parse(localStorage.getItem('mempair_state'));
+  } catch { return null; }
+}
+
+function clearState() {
+  localStorage.removeItem('mempair_state');
+}
+
+function saveSizePreference(size) {
+  localStorage.setItem('mempair_size', size);
+}
+
+function loadSizePreference() {
+  const size = localStorage.getItem('mempair_size');
+  return (size && SIZES[size]) ? size : null;
+}
 
 function pad(n) {
   return n.toString().padStart(2, "0");
-}
-
-function formatTime(ms) {
-  const total = Math.floor(ms / 1000);
-  return `${Math.floor(total / 60)}:${pad(total % 60)}`;
-}
-
-function startTimer() {
-  if (timerId) return;
-  startTime = Date.now();
-  timerId = setInterval(() => {
-    timeEl.textContent = formatTime(Date.now() - startTime);
-  }, 500);
-}
-
-function stopTimer() {
-  clearInterval(timerId);
-  timerId = null;
 }
 
 // Build a shuffled deck: each image id appears twice.
@@ -91,8 +147,8 @@ function dismissPending() {
     pendingPair.first.classList.add("matched");
     pendingPair.second.classList.add("matched");
     matched++;
-    pairsEl.textContent = matched;
     if (matched === TOTAL_PAIRS) endGame();
+    if (!gameOver) saveState();
   } else {
     // Mismatched pair: turn both back face down.
     pendingPair.first.classList.remove("flipped");
@@ -128,7 +184,6 @@ function handleCard(card) {
   if (card.classList.contains("matched") || card.classList.contains("flipped")) return;
   if (card === firstCard) return;
 
-  startTimer();
   card.classList.add("flipped");
 
   if (!firstCard) {
@@ -139,6 +194,7 @@ function handleCard(card) {
   secondCard = card;
   moves++;
   movesEl.textContent = moves;
+  saveState();
   evaluate();
 }
 
@@ -152,28 +208,101 @@ function evaluate() {
 }
 
 function endGame() {
-  stopTimer();
-  winStatsEl.textContent = `Moves: ${moves}   Time: ${formatTime(Date.now() - startTime)}`;
+  gameOver = true;
+  const all = readStats();
+  const sizeStats = all[currentSize] || { games: 0, total: 0, best: null };
+  sizeStats.games += 1;
+  sizeStats.total += moves;
+  if (sizeStats.best === null || moves < sizeStats.best) {
+    sizeStats.best = moves;
+  }
+  all[currentSize] = sizeStats;
+  writeStats(all);
+  renderStats();
+  const avg = averageMoves();
+  const best = bestMoves();
+  winStatsEl.textContent =
+    `Moves: ${moves}` +
+    (avg === null ? "" : `   Average: ${avg}`) +
+    (best === null ? "" : `   Best: ${best}`);
   winOverlayEl.classList.add("show");
+  clearState();
+}
+
+function applyLayout() {
+  const { cols, rows } = SIZES[currentSize];
+  const gap = parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue("--gap")
+  ) || 12;
+  const headerH = document.getElementById("header").offsetHeight;
+  const availW = window.innerWidth - 32;            // body side padding/margins
+  const availH = window.innerHeight - headerH - 64; // header + board margins + breathing room
+  const byWidth = Math.floor((availW - (cols - 1) * gap) / cols);
+  const byHeight = Math.floor((availH - (rows - 1) * gap) / rows);
+  const card = Math.max(MIN_CARD, Math.min(BASE_CARD, byWidth, byHeight));
+  boardEl.style.setProperty("--card-size", card + "px");
+  boardEl.style.gridTemplateColumns = `repeat(${cols}, ${card}px)`;
+  boardEl.style.gridAutoRows = `${card}px`;
 }
 
 function init() {
-  stopTimer();
-  boardEl.innerHTML = "";
+  const saved = loadState();
+  if (saved && SIZES[saved.size]) {
+    currentSize = saved.size;
+    sizeSelect.value = currentSize;
+  } else {
+    const preferred = loadSizePreference();
+    if (preferred) {
+      currentSize = preferred;
+      sizeSelect.value = currentSize;
+    }
+  }
+  const { cols, rows } = SIZES[currentSize];
+  TOTAL_PAIRS = (cols * rows) / 2;
+  applyLayout();
   winOverlayEl.classList.remove("show");
   firstCard = null;
   secondCard = null;
   pendingPair = null;
   moves = 0;
   matched = 0;
+  gameOver = false;
   movesEl.textContent = "0";
-  pairsEl.textContent = "0";
-  timeEl.textContent = "0:00";
+  renderStats();
 
-  const deck = buildDeck();
-  deck.forEach((id) => boardEl.appendChild(createCard(id)));
+  if (saved && saved.deck && saved.deck.length === cols * rows) {
+    boardEl.innerHTML = "";
+    saved.deck.forEach((item) => {
+      const card = createCard(item.id);
+      if (item.matched) card.classList.add("matched");
+      boardEl.appendChild(card);
+    });
+    moves = saved.moves || 0;
+    matched = saved.deck.filter((item) => item.matched).length;
+    movesEl.textContent = moves;
+  } else {
+    const deck = buildDeck();
+    boardEl.innerHTML = "";
+    deck.forEach((id) => boardEl.appendChild(createCard(id)));
+    saveState();
+  }
 }
 
-restartBtn.addEventListener("click", init);
-document.getElementById("play-again").addEventListener("click", init);
+restartBtn.addEventListener("click", () => {
+  clearState();
+  init();
+});
+document.getElementById("play-again").addEventListener("click", () => {
+  clearState();
+  init();
+});
+sizeSelect.addEventListener("change", (e) => {
+  currentSize = e.target.value;
+  saveSizePreference(currentSize);
+  clearState();
+  init();
+});
 init();
+
+// Keep cards at BASE_CARD on desktop; scale down only when the viewport is too narrow.
+window.addEventListener("resize", applyLayout);
