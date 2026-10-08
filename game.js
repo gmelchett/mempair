@@ -10,6 +10,15 @@ const SIZES = {
 };
 const BASE_CARD = 110;   // preferred card size on desktop
 const MIN_CARD = 48;     // smallest a card may shrink to
+
+// In vertical (portrait) mode the board is taller than wide, so we swap the
+// layout's cols/rows to keep cards comfortably sized (e.g. 8x4 becomes 4x8).
+function effectiveDims() {
+  const { cols, rows } = SIZES[currentSize];
+  return window.innerHeight > window.innerWidth
+    ? { cols: rows, rows: cols }
+    : { cols, rows };
+}
 let currentSize = "small";
 let currentSet = "random"; // "random" or "setN"
 let selectedImages = [];    // selectedImages[logicalId-1] = actual image number (1..60)
@@ -314,7 +323,7 @@ function endGame() {
 }
 
 function applyLayout() {
-  const { cols, rows } = SIZES[currentSize];
+  const { cols, rows } = effectiveDims();
   const gap = parseInt(
     getComputedStyle(document.documentElement).getPropertyValue("--gap")
   ) || 12;
