@@ -25,6 +25,7 @@ Notes on the above: ImageMagick's `-flatten` step collapses color to grayscale, 
 - `index.html` — static markup: header (Moves and Avg stats + Restart button), `#board` grid container, and a `#win-overlay` full-screen win dialog (h2 + `#win-stats` + `#play-again` button). Loads `style.css` and `game.js`.
 - `style.css` — 4x4 CSS grid (`.board`), 3D flip via `perspective` + `transform-style: preserve-3d` + `rotateY(180deg)`, faces use `backface-visibility: hidden`. Card sizing is driven by the `--card-size`/`--gap`/`--radius` custom properties.
 - `game.js` — self-contained, no modules. Builds a shuffled deck, renders `<button class="card">` elements, and handles click -> flip -> match evaluation.
+- `manifest.webmanifest` + `sw.js` + `icon-*.png` — installable PWA (mirrors the yukon project). `sw.js` caches the app shell, `assets/back.png`, and card faces `assets/01.jpg`..`assets/36.jpg` (enough for the largest 6x12 board); network-first for navigations, cache-first for assets. `index.html` registers the worker on load, guarded so `file://` still plays. Icons are generated from `assets/back.png` composited on the green body color.
 
 ## Game logic (game.js)
 
