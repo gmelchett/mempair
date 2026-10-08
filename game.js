@@ -18,6 +18,22 @@ const IMAGE_BASE = "assets/";
 const BACK_IMAGE = "assets/back.png";
 const TOTAL_IMAGES = 72; // available card images: assets/01.jpg .. assets/72.jpg
 
+// Per-set back coloring. The single blue back.png is recolored at runtime via
+// a CSS hue-rotate filter, so every Set gets a distinct hue without generating
+// extra image files. Keyed by set number (1..availableSets()). "random" keeps
+// the default blue (filter "none").
+const SET_BACK_FILTERS = {
+  1: "hue-rotate(0deg)",     // blue
+  2: "hue-rotate(40deg)",    // indigo (contrasts the green page bg)
+  3: "hue-rotate(108deg)",   // magenta
+  4: "hue-rotate(138deg)",   // red
+  5: "hue-rotate(178deg)",   // orange
+  6: "hue-rotate(200deg)",   // yellow
+  7: "hue-rotate(-22deg)",   // cyan
+  8: "hue-rotate(63deg)",    // purple
+  9: "hue-rotate(123deg)",   // pink
+};
+
 const boardEl = document.getElementById("board");
 const movesEl = document.getElementById("moves");
 const avgEl = document.getElementById("avg");
@@ -313,6 +329,17 @@ function applyLayout() {
   boardEl.style.gridAutoRows = `${card}px`;
 }
 
+// Apply the per-set back color by setting a CSS hue-rotate filter on the
+// single back.png. "random" (or any unknown set) leaves it default blue.
+function applyBackColor() {
+  let filter = "none";
+  if (currentSet && currentSet.startsWith("set")) {
+    const k = parseInt(currentSet.slice(3), 10);
+    filter = SET_BACK_FILTERS[k] || "none";
+  }
+  document.documentElement.style.setProperty("--back-filter", filter);
+}
+
 function init() {
   const saved = loadState();
   if (saved && SIZES[saved.size]) {
@@ -333,6 +360,7 @@ function init() {
   currentSet = storedSet || "random";
   populateSetSelect();
   setSelect.value = currentSet;
+  applyBackColor();
 
   applyLayout();
   winOverlayEl.classList.remove("show");
