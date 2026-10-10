@@ -5,6 +5,8 @@
 This is a vibe coded implementation of the pair memory game. The main target is to play on a tablet. There are several sets of images, up to two, for the largest game. The game
 uses local storage in your browser to keep current game and statistics.
 
+It can be installed as a PWA and behave like a local program via a browser.
+
 
 I like [Memory](https://play.google.com/store/apps/details?id=com.ravensburger.memory&hl=en-US) game implementation, but not the menu system, nor that it is pretty slow in most aspects.
 
